@@ -36,10 +36,10 @@ export const generateRoomCode = (): string => {
   return code;
 };
 
-// Create/Update match data in Firebase
+// Create/Update match data in Firebase WITH MOBILE ALERT DIAGNOSTICS
 export const broadcastMatchUpdate = async (roomCode: string, data: SyncData): Promise<boolean> => {
   if (!roomCode) {
-    console.warn('[Firebase] No room code provided');
+    alert('[CricKashmir Sync Error]: No room code provided.');
     return false;
   }
   
@@ -47,17 +47,32 @@ export const broadcastMatchUpdate = async (roomCode: string, data: SyncData): Pr
   console.log('[Firebase] Broadcasting to room:', code);
   
   try {
+    // Check if the database instance is actually active
+    if (!database) {
+      alert('[Firebase Error]: Database instance is null or uninitialized.');
+      return false;
+    }
+
     const matchRef = ref(database, `live_matches/${code}`);
-    await set(matchRef, {
-      match: JSON.parse(JSON.stringify(data.match)), // Deep clone to avoid proxies
-      teams: JSON.parse(JSON.stringify(data.teams)),
-      players: JSON.parse(JSON.stringify(data.players)),
+    
+    // Safely structure the deep clone data payload
+    const payload = {
+      match: data.match ? JSON.parse(JSON.stringify(data.match)) : null,
+      teams: data.teams ? JSON.parse(JSON.stringify(data.teams)) : [],
+      players: data.players ? JSON.parse(JSON.stringify(data.players)) : [],
       timestamp: Date.now(),
       roomCode: code,
-    });
-    console.log('[Firebase] ✅ Broadcast successful for room:', code);
+    };
+
+    // Attempt the cloud database update
+    await set(matchRef, payload);
+    
+    // If it works, your phone will give you a pop-up confirmation!
+    alert(`🎉 Success! Room ${code} created on Firebase.`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    // This catches the exact network or permission block and flashes it on your mobile screen
+    alert(`❌ Firebase Connection Crashed!\nReason: ${error?.message || error || 'Unknown Error'}`);
     console.error('[Firebase] ❌ Error broadcasting:', error);
     return false;
   }
@@ -136,3 +151,4 @@ export const checkRoomExists = async (roomCode: string): Promise<SyncData | null
 };
 
 export { database };
+    
