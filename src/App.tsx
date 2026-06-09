@@ -19,6 +19,8 @@ import BottomNav from './components/BottomNav';
 export default function App() {
   const screen = useStore(s => s.screen);
   const navigate = useStore(s => s.navigate);
+  // Get active room string tracking from your Zustand store if it exists
+  const currentRoomCode = useStore(s => (s as any).roomCode || (s as any).currentRoom || null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -27,6 +29,17 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Structural Navigation Routing Guard: 
+  // If a user is currently on the 'scoring' panel layout view, but they loaded into it 
+  // from a shared room cloud code connection, force reroute them onto the safe LiveViewScreen instead.
+  useEffect(() => {
+    if (screen === 'scoring' && currentRoomCode) {
+      console.log('[App Security Guard] Redirecting viewer away from scoring panel onto LiveView.');
+      navigate('liveView');
+    }
+  }, [screen, currentRoomCode, navigate]);
+
+  // Determine when to display the global bottom navigation dashboard tabs
   const showNav = !['splash', 'scoring', 'newMatch', 'teamCreate', 'matchSummary', 'liveView', 'shareScore', 'joinMatch'].includes(screen);
 
   return (
