@@ -36,26 +36,15 @@ export const generateRoomCode = (): string => {
   return code;
 };
 
-// Create/Update match data in Firebase WITH MOBILE ALERT DIAGNOSTICS
+// Create/Update match data in Firebase (Silent updates)
 export const broadcastMatchUpdate = async (roomCode: string, data: SyncData): Promise<boolean> => {
-  if (!roomCode) {
-    alert('[CricKashmir Sync Error]: No room code provided.');
-    return false;
-  }
-  
+  if (!roomCode) return false;
   const code = roomCode.toUpperCase();
-  console.log('[Firebase] Broadcasting to room:', code);
   
   try {
-    // Check if the database instance is actually active
-    if (!database) {
-      alert('[Firebase Error]: Database instance is null or uninitialized.');
-      return false;
-    }
-
+    if (!database) return false;
     const matchRef = ref(database, `live_matches/${code}`);
     
-    // Safely structure the deep clone data payload
     const payload = {
       match: data.match ? JSON.parse(JSON.stringify(data.match)) : null,
       teams: data.teams ? JSON.parse(JSON.stringify(data.teams)) : [],
@@ -64,15 +53,9 @@ export const broadcastMatchUpdate = async (roomCode: string, data: SyncData): Pr
       roomCode: code,
     };
 
-    // Attempt the cloud database update
     await set(matchRef, payload);
-    
-    // If it works, your phone will give you a pop-up confirmation!
-    alert(`🎉 Success! Room ${code} created on Firebase.`);
-    return true;
+    return true; // Returns silently now, no alert popup spam!
   } catch (error: any) {
-    // This catches the exact network or permission block and flashes it on your mobile screen
-    alert(`❌ Firebase Connection Crashed!\nReason: ${error?.message || error || 'Unknown Error'}`);
     console.error('[Firebase] ❌ Error broadcasting:', error);
     return false;
   }
@@ -83,49 +66,34 @@ export const subscribeToMatch = (
   roomCode: string,
   onUpdate: (data: SyncData) => void
 ): (() => void) => {
-  if (!roomCode) {
-    console.warn('[Firebase] No room code for subscription');
-    return () => {};
-  }
-  
+  if (!roomCode) return () => {};
   const code = roomCode.toUpperCase();
-  console.log('[Firebase] Subscribing to room:', code);
   
   const matchRef = ref(database, `live_matches/${code}`);
   
   onValue(matchRef, (snapshot) => {
     const data = snapshot.val();
     if (data && data.match) {
-      console.log('[Firebase] 📥 Received update for room:', code, 'at', new Date(data.timestamp).toLocaleTimeString());
       onUpdate({
         match: data.match,
         teams: data.teams || [],
         players: data.players || [],
         timestamp: data.timestamp,
       });
-    } else {
-      console.log('[Firebase] No data in snapshot for room:', code);
     }
   }, (error) => {
     console.error('[Firebase] ❌ Subscription error:', error);
   });
   
-  // Return unsubscribe function
   return () => {
-    console.log('[Firebase] Unsubscribing from room:', code);
     off(matchRef);
   };
 };
 
 // Check if a room exists and get its data
 export const checkRoomExists = async (roomCode: string): Promise<SyncData | null> => {
-  if (!roomCode) {
-    console.warn('[Firebase] No room code to check');
-    return null;
-  }
-  
+  if (!roomCode) return null;
   const code = roomCode.toUpperCase();
-  console.log('[Firebase] Checking if room exists:', code);
   
   try {
     const matchRef = ref(database, `live_matches/${code}`);
@@ -133,7 +101,6 @@ export const checkRoomExists = async (roomCode: string): Promise<SyncData | null
     
     if (snapshot.exists()) {
       const data = snapshot.val();
-      console.log('[Firebase] ✅ Room found:', code);
       return {
         match: data.match,
         teams: data.teams || [],
@@ -141,8 +108,6 @@ export const checkRoomExists = async (roomCode: string): Promise<SyncData | null
         timestamp: data.timestamp,
       };
     }
-    
-    console.log('[Firebase] ❌ Room not found:', code);
     return null;
   } catch (error) {
     console.error('[Firebase] ❌ Error checking room:', error);
@@ -151,4 +116,3 @@ export const checkRoomExists = async (roomCode: string): Promise<SyncData | null
 };
 
 export { database };
-    
